@@ -2,5 +2,5 @@ FILES = $(wildcard *.c) mpc/mpc.c
 TARGET := hello
 
 all: $(FILES)
-	$(CC) -std=c99 $^ -I. -Impc -lm -lreadline -o $(TARGET)
+	$(CC) -g -std=c99 $^ -I. -Impc -lm -lreadline -o $(TARGET)
 
