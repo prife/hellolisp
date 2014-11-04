@@ -222,7 +222,11 @@ lval* lval_eval_sexpr(lval* v)
     if (v->count == 0)
         return v;
     if (v->count == 1)
-        return v;
+    {
+        result = v->cell[0];
+        free(v);
+        return result;
+    }
 
     //get the first child of S-expr, it should be a `symbol'
     lval* f = v->cell[0];
