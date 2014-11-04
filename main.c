@@ -158,37 +158,38 @@ lval* lval_read(mpc_ast_t* t)
 
 lval* buildin_head(lval* v)
 {
-    if (v->count != 1)
+    if (v->count != 2)
         return lval_err("Function 'head' passed too many arguments!");
-    if (v->cell[0]->type != LVAL_QEXPR)
+    if (v->cell[1]->type != LVAL_QEXPR)
         return lval_err("Function 'head' passed incorrect type!");
-    if (v->cell[0]->count == 0)
+    if (v->cell[1]->count == 0)
         return lval_err("Function 'head' passed {}!");
 
-    lval* x = lval_copy(v->cell[0], 0);
+    lval* x = lval_copy(v->cell[1], 0);
     return x;
 }
 
 lval* buildin_tail(lval* v)
 {
-    if (v->count != 1)
+    if (v->count != 2)
         return lval_err("Function 'tail' passed too many arguments!");
-    if (v->cell[0]->type != LVAL_QEXPR)
+    if (v->cell[1]->type != LVAL_QEXPR)
         return lval_err("Function 'tail' passed incorrect type!");
-    if (v->cell[0]->count == 0)
+    if (v->cell[1]->count == 0)
         return lval_err("Function 'tail' passed {}!");
 
-    lval* x = lval_expr(v->cell[0]->type);
-    for (int i=1; i<v->cell[0]->count; i++)
-        lval_add(x, lval_copy(v->cell[0], i));
+    lval* x = lval_expr(v->cell[1]->type);
+    for (int i=1; i<v->cell[1]->count; i++)
+        lval_add(x, lval_copy(v->cell[1], i));
 
     return x;
 }
 
 lval* buildin_list(lval* v)
 {
-    lval* x = lval_dump(v);
-    x->type = LVAL_QEXPR;
+    lval* x = lval_expr(LVAL_QEXPR);
+    for (int i=1; i<v->count; i++)
+        x = lval_add(x, lval_copy(v, i));
     return x;
 }
 
@@ -205,14 +206,14 @@ lval* lval_join(lval* x, lval* y)
 
 lval* buildin_join(lval* v)
 {
-    for (int i=0; i<v->count; i++)
+    for (int i=1; i<v->count; i++)
     {
         if (v->cell[i]->type != LVAL_QEXPR)
             return lval_err("Function 'join' passed incorrect type!");
     }
 
-    lval* x = lval_copy(v, 0);
-    for (int i=0; i<v->count; i++)
+    lval* x = lval_copy(v, 1);
+    for (int i=2; i<v->count; i++)
     {
         lval_join(x, v->cell[i]);
     }
@@ -223,13 +224,13 @@ lval* buildin_join(lval* v)
 lval* lval_eval(lval* v);
 lval* buildin_eval(lval* v)
 {
-    if (v->count != 1)
+    if (v->count != 2)
         return lval_err("Function 'eval' passed too many arguments!");
-    if (v->cell[0]->type != LVAL_QEXPR)
+    if (v->cell[1]->type != LVAL_QEXPR)
         return lval_err("Function 'eval' passed incorrect type!");
 //    if (v->cell[0]->count == 0)
 //        return lval_err("Function 'eval' passed {}!");
-    lval* x = lval_copy(v, 0);
+    lval* x = lval_copy(v, 1);
     x->type = LVAL_SEXPR;
 
     return lval_eval(x);
@@ -354,11 +355,13 @@ lval* lval_eval_sexpr(lval* v)
         goto out;
     }
 
+#if 0
     else if (v->count == 2)
     {
         result = lval_err("S-Expression does not support unary symbol!");
         goto out;
     }
+#endif
 
     result = buildin(v, f->sym);
 
