@@ -191,8 +191,11 @@ lval* lval_eval_sexpr(lval* v)
     {
         v->cell[i] = lval_eval(v->cell[i]);
         //error checking
-        //if (v->cell[i]->type == LVAL_ERR)
-        //    return lval_take(v, i);
+        if (v->cell[i]->type == LVAL_ERR)
+        {
+            result = lval_err(v->cell[i]->err);
+            goto out;
+        }
     }
 
     if (v->count == 0)
