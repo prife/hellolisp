@@ -19,7 +19,7 @@ typedef struct lval {
     struct lval** cell;
 } lval;
 
-enum {LVAL_ERR, LVAL_NUM, LVAL_SYM, LVAL_SEXPR};
+enum {LVAL_ERR, LVAL_NUM, LVAL_SYM, LVAL_SEXPR, LVAL_QEXPR};
 enum {LERR_DIV_ZERO, LERR_BAD_OP, LERR_BAD_NUM };
 
 lval* lval_err(char* str)
@@ -58,6 +58,15 @@ lval* lval_sexpr(void)
     return x;
 }
 
+lval* lval_qexpr(void)
+{
+    lval* x = malloc(sizeof(lval));
+    x->type = LVAL_QEXPR;
+    x->count = 0;
+    x->cell = NULL;
+    return x;
+}
+
 void lval_del(lval* v)
 {
     switch (v->type)
@@ -65,6 +74,7 @@ void lval_del(lval* v)
     case LVAL_ERR: free(v->err); break;
     case LVAL_NUM: break;
     case LVAL_SYM: free(v->sym); break;
+    case LVAL_QEXPR:
     case LVAL_SEXPR:
        for (int i=0; i<v->count; i++)
        {
@@ -101,6 +111,8 @@ lval* lval_read(mpc_ast_t* t)
     }
     else if (!strcmp(t->tag, ">") || strstr(t->tag, "sexpr"))
         x = lval_sexpr();
+    else if (strstr(t->tag, "qexpr"))
+        x = lval_qexpr();
 
     for (int i=0; i<t->children_num; i++)
     {
@@ -151,7 +163,20 @@ lval* buildin_op(lval* v, const char* op)
     return x;
 }
 
-void lval_print(lval *v, char open, char close)
+void lval_print(lval *v);
+void lval_expr_print(lval *v, char open, char close)
+{
+    putchar(open);
+    for (int i=0; i <v->count; i++)
+    {
+        lval_print(v->cell[i]);
+        if (i != v->count-1)
+            putchar(' ');
+    }
+    putchar(close);
+}
+
+void lval_print(lval *v)
 {
     switch (v->type)
     {
@@ -165,21 +190,17 @@ void lval_print(lval *v, char open, char close)
         printf("%s", v->err);
         break;
     case LVAL_SEXPR:
-        putchar(open);
-        for (int i=0; i <v->count; i++)
-        {
-            lval_print(v->cell[i], open, close);
-            if (i != v->count-1)
-                putchar(' ');
-        }
-        putchar(close);
+        lval_expr_print(v, '(', ')');
+        break;
+    case LVAL_QEXPR:
+        lval_expr_print(v, '{', '}');
         break;
     }
 }
 
 void lval_println(lval *v)
 {
-    lval_print(v, '(', ')');
+    lval_print(v);
     putchar('\n');
 }
 
@@ -239,6 +260,7 @@ int main(int argc, char* argv[])
     mpc_parser_t* Number = mpc_new("number");
     mpc_parser_t* Symbol = mpc_new("symbol");
     mpc_parser_t* Sexpr = mpc_new("sexpr");
+    mpc_parser_t* Qexpr = mpc_new("qexpr");
     mpc_parser_t* Expr = mpc_new("expr");
     mpc_parser_t* Lispy = mpc_new("lispy");
 
@@ -247,10 +269,11 @@ int main(int argc, char* argv[])
             number   : /-?[0-9]+/ ;                            \
             symbol   : '+' | '-' | '*' | '/' ;                 \
             sexpr    : '(' <expr>* ')' ;                       \
-            expr     : <number> | <symbol> | <sexpr>  ;        \
+            qexpr    : '{' <expr>* '}' ;                       \
+            expr     : <number> | <symbol> | <sexpr> | <qexpr> ;\
             lispy    : /^/ <expr>+ /$/ ;                       \
         ",                                                     \
-        Number, Symbol, Sexpr, Expr, Lispy);
+        Number, Symbol, Sexpr, Qexpr, Expr, Lispy);
 
     while (1)
     {
@@ -260,12 +283,8 @@ int main(int argc, char* argv[])
         if (mpc_parse("<stdin>", line, Lispy, &r))
         {
             mpc_ast_print(r.output);
-            //show(r.output);
-            //printf("number of nodes: %d\n", number_of_nodes(r.output));
-            //printf("number of leaves: %d\n", number_of_leaves(r.output));
-            //lval x = eval(r.output);
             lval* x = lval_eval(lval_read(r.output));
-            assert(x != NULL);
+            //lval* x = lval_read(r.output);
             lval_println(x);
             lval_del(x);
             mpc_ast_delete(r.output);
@@ -277,6 +296,6 @@ int main(int argc, char* argv[])
         free(line);
     }
 
-    mpc_cleanup(5, Number, Symbol, Sexpr, Expr, Lispy);
+    mpc_cleanup(6, Number, Symbol, Sexpr, Qexpr, Expr, Lispy);
     return 0;
 }
