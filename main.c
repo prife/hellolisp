@@ -187,8 +187,9 @@ lval* buildin_tail(lval* v)
 
 lval* buildin_list(lval* v)
 {
-    v->type = LVAL_SEXPR;
-    return v;
+    lval* x = lval_dump(v);
+    x->type = LVAL_QEXPR;
+    return x;
 }
 
 //x y should be Q-Expr
