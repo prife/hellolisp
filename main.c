@@ -118,7 +118,15 @@ lval* lval_read(mpc_ast_t* t)
 
 lval* buildin_op(lval* v, const char* op)
 {
-    lval* x = lval_num(v->cell[1]->num);
+    lval* x = NULL;
+
+    for (int i=1; i<v->count; i++)
+    {
+        if (v->cell[i]->type != LVAL_NUM)
+            return lval_err("Cannot operate on non-number!");
+    }
+
+    x = lval_num(v->cell[1]->num);
     for (int i=2; i<v->count; i++)
     {
         lval* y = v->cell[i];
@@ -192,6 +200,7 @@ lval* lval_eval_sexpr(lval* v)
     if (v->count == 1)
         return v;
 
+    //get the first child of S-expr, it should be a `symbol'
     lval* f = v->cell[0];
     if (f->type != LVAL_SYM)
     {
@@ -199,10 +208,16 @@ lval* lval_eval_sexpr(lval* v)
         goto out;
     }
 
+    else if (v->count == 2)
+    {
+        result = lval_err("S-Expression does not support unary symbol!");
+        goto out;
+    }
+
     result = buildin_op(v, f->sym);
 
 out:
-//    lval_del(v);
+    lval_del(v);
     return result;
 }
 
