@@ -277,7 +277,7 @@ lval* buildin(lval* v, char* sym)
     if (!strcmp("list", sym)) return buildin_list(v);
     if (!strcmp("head", sym)) return buildin_head(v);
     if (!strcmp("tail", sym)) return buildin_tail(v);
-    if (!strcmp("join", sym)) return buildin_tail(v);
+    if (!strcmp("join", sym)) return buildin_join(v);
     if (!strcmp("eval", sym)) return buildin_eval(v);
     if (strstr("+-/*", sym))  return buildin_op(v, sym);
 
