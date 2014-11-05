@@ -398,7 +398,7 @@ int main(int argc, char* argv[])
             sexpr    : '(' <expr>* ')' ;                              \
             qexpr    : '{' <expr>* '}' ;                              \
             expr     : <number> | <symbol> | <sexpr> | <qexpr> ;      \
-            lispy    : /^/ <expr>+ /$/ ;                              \
+            lispy    : /^/ <expr>* /$/ ;                              \
         ",                                                            \
         Number, Symbol, Sexpr, Qexpr, Expr, Lispy);
 
