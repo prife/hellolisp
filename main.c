@@ -165,7 +165,8 @@ lval* buildin_head(lval* v)
     if (v->cell[1]->count == 0)
         return lval_err("Function 'head' passed {}!");
 
-    lval* x = lval_copy(v->cell[1], 0);
+    lval* x = lval_expr(v->cell[1]->type);
+    lval_add(x, lval_copy(v->cell[1], 0));
     return x;
 }
 
