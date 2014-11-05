@@ -96,7 +96,8 @@ lval* lval_add(lval* v, lval* x)
 }
 
 //V is an S-Expr or Q-Expr
-lval* lval_dump(lval* v)
+//this version is really effectiveless
+lval* lval_copy(lval* v)
 {
     lval* x = NULL;
     switch (v->type)
@@ -109,7 +110,7 @@ lval* lval_dump(lval* v)
        x = lval_expr(v->type);
        for (int i=0; i<v->count; i++)
        {
-           lval_add(x, lval_dump(v->cell[i]));
+           lval_add(x, lval_copy(v->cell[i]));
        }
        break;
     }
@@ -117,9 +118,9 @@ lval* lval_dump(lval* v)
     return x;
 }
 
-lval* lval_copy(lval* v, int i)
+lval* lval_clone(lval* v, int i)
 {
-    return lval_dump(v->cell[i]);
+    return lval_copy(v->cell[i]);
 }
 
 lval* lval_read(mpc_ast_t* t)
@@ -166,7 +167,7 @@ lval* buildin_head(lval* v)
         return lval_err("Function 'head' passed {}!");
 
     lval* x = lval_expr(v->cell[1]->type);
-    lval_add(x, lval_copy(v->cell[1], 0));
+    lval_add(x, lval_clone(v->cell[1], 0));
     return x;
 }
 
@@ -181,7 +182,7 @@ lval* buildin_tail(lval* v)
 
     lval* x = lval_expr(v->cell[1]->type);
     for (int i=1; i<v->cell[1]->count; i++)
-        lval_add(x, lval_copy(v->cell[1], i));
+        lval_add(x, lval_clone(v->cell[1], i));
 
     return x;
 }
@@ -190,7 +191,7 @@ lval* buildin_list(lval* v)
 {
     lval* x = lval_expr(LVAL_QEXPR);
     for (int i=1; i<v->count; i++)
-        x = lval_add(x, lval_copy(v, i));
+        x = lval_add(x, lval_clone(v, i));
     return x;
 }
 
@@ -199,7 +200,7 @@ lval* lval_join(lval* x, lval* y)
 {
     for (int i=0; i<y->count; i++)
     {
-        x = lval_add(x, lval_copy(y, i));
+        x = lval_add(x, lval_clone(y, i));
     }
 
     return x;
@@ -213,7 +214,7 @@ lval* buildin_join(lval* v)
             return lval_err("Function 'join' passed incorrect type!");
     }
 
-    lval* x = lval_copy(v, 1);
+    lval* x = lval_clone(v, 1);
     for (int i=2; i<v->count; i++)
     {
         lval_join(x, v->cell[i]);
@@ -231,7 +232,7 @@ lval* buildin_eval(lval* v)
         return lval_err("Function 'eval' passed incorrect type!");
 //    if (v->cell[0]->count == 0)
 //        return lval_err("Function 'eval' passed {}!");
-    lval* x = lval_copy(v, 1);
+    lval* x = lval_clone(v, 1);
     x->type = LVAL_SEXPR;
 
     return lval_eval(x);
