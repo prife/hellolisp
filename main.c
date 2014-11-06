@@ -3,8 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <error.h>
+#include <stdarg.h>
 #include <editline/readline.h>
 #include <mpc.h>
+
 char *strdup(const char *s);
 
 struct lenv;
@@ -38,13 +40,37 @@ struct lval {
 
 enum {LVAL_ERR, LVAL_NUM, LVAL_SYM, LVAL_FUN, LVAL_SEXPR, LVAL_QEXPR};
 
-lval* lval_err(char* str)
+char* ltype_name(int type)
+{
+#define LVAL_TPYE(type)  \
+    case type: return #type;
+
+    switch (type)
+    {
+    LVAL_TPYE(LVAL_ERR);
+    LVAL_TPYE(LVAL_NUM);
+    LVAL_TPYE(LVAL_SYM);
+    LVAL_TPYE(LVAL_FUN);
+    LVAL_TPYE(LVAL_SEXPR);
+    LVAL_TPYE(LVAL_QEXPR);
+    default: return "Unknown";
+    }
+
+}
+
+lval* lval_err(char* fmt, ...)
 {
     lval *x = malloc(sizeof(lval));
     x->type = LVAL_ERR;
-    x->err = malloc(strlen(str)+1);
-    strcpy(x->err, str);
-    //x->err = strdup(str);
+    x->err = malloc(512);
+
+    va_list va;
+    va_start(va, fmt);
+    vsnprintf(x->err, 511, fmt, va);
+    va_end(va);
+
+    x->err = realloc(x->err, strlen(x->err)+1);
+
     return x;
 }
 
@@ -128,7 +154,11 @@ lval* lval_copy(lval* v)
     switch (v->type)
     {
     case LVAL_NUM: x = lval_num(v->num); break;
-    case LVAL_ERR: x = lval_err(v->err); break;
+    case LVAL_ERR:
+       x = malloc(sizeof(lval));
+       x->type = LVAL_ERR;
+       x->err = strdup(v->err);
+       break;
     case LVAL_SYM: x = lval_sym(v->sym); break;
     case LVAL_FUN: x = lval_fun(v->fun); break;
     case LVAL_QEXPR:
@@ -178,7 +208,7 @@ lval* lenv_get(lenv* e, lval* k)
         if (!strcmp(e->syms[i], k->sym))
             return lval_copy(e->vals[i]);
 
-    return lval_err("unbounded symbol");
+    return lval_err("unbounded symbol %s", k->sym);
 }
 
 /* k is just the name of val, v is the value of the val*/
@@ -238,9 +268,12 @@ lval* lval_read(mpc_ast_t* t)
 lval* buildin_head(lenv *e, lval* v)
 {
     if (v->count != 2)
-        return lval_err("Function 'head' passed too many arguments!");
+        return lval_err("Function 'head' passed too many arguments, "
+                        "get %d, expectedd %d", 1, v->count);
     if (v->cell[1]->type != LVAL_QEXPR)
-        return lval_err("Function 'head' passed incorrect type!");
+        return lval_err("Function 'head' passed incorrect type, "
+                        "get <%s>, expected<%s>",
+                        ltype_name(v->cell[1]->type), ltype_name(LVAL_QEXPR));
     if (v->cell[1]->count == 0)
         return lval_err("Function 'head' passed {}!");
 
@@ -252,9 +285,12 @@ lval* buildin_head(lenv *e, lval* v)
 lval* buildin_tail(lenv* e, lval* v)
 {
     if (v->count != 2)
-        return lval_err("Function 'tail' passed too many arguments!");
+        return lval_err("Function 'tail' passed too many arguments, "
+                        "get %d, expectedd %d", v->count, 1);
     if (v->cell[1]->type != LVAL_QEXPR)
-        return lval_err("Function 'tail' passed incorrect type!");
+        return lval_err("Function 'tail' passed incorrect type, "
+                        "get <%s>, expected<%s>",
+                        ltype_name(v->cell[1]->type), ltype_name(LVAL_QEXPR));
     if (v->cell[1]->count == 0)
         return lval_err("Function 'tail' passed {}!");
 
@@ -305,9 +341,12 @@ lval* lval_eval(lenv* e, lval* v);
 lval* buildin_eval(lenv* e, lval* v)
 {
     if (v->count != 2)
-        return lval_err("Function 'eval' passed too many arguments!");
+        return lval_err("Function 'eval' passed too many arguments, "
+                        "get %d, expectedd %d", 1, v->count);
     if (v->cell[1]->type != LVAL_QEXPR)
-        return lval_err("Function 'eval' passed incorrect type!");
+        return lval_err("Function 'eval' passed incorrect type, "
+                        "get <%s>, expected<%s>",
+                        ltype_name(v->cell[1]->type), ltype_name(LVAL_QEXPR));
 //    if (v->cell[0]->count == 0)
 //        return lval_err("Function 'eval' passed {}!");
     lval* x = lval_clone(v, 1);
@@ -323,7 +362,9 @@ lval* buildin_op(lval* v, const char* op)
     for (int i=1; i<v->count; i++)
     {
         if (v->cell[i]->type != LVAL_NUM)
-            return lval_err("Cannot operate on non-number!");
+            return lval_err("Function '%s' passed incorrect type, "
+                            "get <%s>, expected<%s>", op,
+                            ltype_name(v->cell[i]->type), ltype_name(LVAL_NUM));
     }
 
     x = lval_num(v->cell[1]->num);
