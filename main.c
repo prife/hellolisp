@@ -208,7 +208,7 @@ lval* lval_read(mpc_ast_t* t)
     {
         errno = 0;
         int i = strtol(t->contents, NULL, 10);
-        x = errno != ERANGE ? lval_num(i) : lval_err("Error: invalid number!");
+        x = errno != ERANGE ? lval_num(i) : lval_err("invalid number!");
         return x;
     }
     else if (strstr(t->tag, "symbol"))
@@ -368,6 +368,27 @@ lval* buildin_div(lenv* e, lval* v)
     return buildin_op(v, "/");
 }
 
+/*
+ * def {x} 1
+ */
+lval* buildin_def(lenv* e, lval* v)
+{
+    lval* syms = v->cell[1];
+
+    if (syms->type != LVAL_QEXPR)
+        return lval_err("Function 'def' passed incorrect type!");
+    if (syms->count == 0 || syms->count != v->count-2)
+        return lval_err("Function 'def' cannot define incorrect"
+                        "number of values to symbols!");
+
+    for (int i=0; i<syms->count; i++)
+    {
+        lenv_put(e, syms->cell[i], v->cell[2+i]);
+    }
+
+    return lval_sexpr();
+}
+
 void lenv_add_buildin(lenv* e, char* name, lbuildin func)
 {
     lval* k = lval_sym(name);
@@ -384,6 +405,7 @@ void lenv_add_buildins(lenv* e)
     lenv_add_buildin(e, "tail", buildin_tail);
     lenv_add_buildin(e, "join", buildin_join);
     lenv_add_buildin(e, "eval", buildin_eval);
+    lenv_add_buildin(e, "def",  buildin_def);
 
     lenv_add_buildin(e, "+", buildin_add);
     lenv_add_buildin(e, "-", buildin_add);
@@ -408,7 +430,7 @@ void lval_print(lval *v)
 {
     switch (v->type)
     {
-    case LVAL_ERR: printf("%s", v->err); break;
+    case LVAL_ERR: printf("Error: %s", v->err); break;
     case LVAL_NUM: printf("%ld", v->num); break;
     case LVAL_SYM: printf("%s", v->sym); break;
     case LVAL_FUN: printf("<function: %p>", v->fun); break;
