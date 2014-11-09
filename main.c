@@ -469,6 +469,114 @@ lval* buildin_div(lenv* e, lval* v)
     return buildin_op(v, "/");
 }
 
+lval* buildin_ord(lval* v, const char* op)
+{
+    if (v->count != 3)
+        return lval_err("Function %s passed incorrent number of arguments, "
+                        "get %d, expectedd %d", op, 1, v->count-1);
+
+    lval* r = lval_num(0);
+    lval* x = v->cell[1];
+    lval* y = v->cell[2];
+    if (x->type != LVAL_NUM || y->type != LVAL_NUM)
+        return lval_err("Function '%s' passed incorrect type, "
+                        "get <%s> <%s>, expected<%s>", op,
+                        ltype_name(x->type), ltype_name(y->type),
+                        ltype_name(LVAL_NUM));
+    if (!strncmp(op, ">", 1))
+        r->num = x->num > y->num;
+    if (!strncmp(op, "<", 1))
+        r->num = x->num < y->num;
+    if (!strncmp(op, ">=", 2))
+        r->num = x->num >= y->num;
+    if (!strncmp(op, "<=", 2))
+        r->num = x->num <= y->num;
+
+    return r;
+}
+
+lval* buildin_gt(lenv* e, lval* v)
+{
+    return buildin_ord(v, ">");
+}
+
+lval* buildin_lt(lenv* e, lval* v)
+{
+    return buildin_ord(v, "<");
+}
+
+lval* buildin_ge(lenv* e, lval* v)
+{
+    return buildin_ord(v, ">=");
+}
+
+lval* buildin_le(lenv* e, lval* v)
+{
+    return buildin_ord(v, "<=");
+}
+
+int lval_equal(lval* x, lval* y)
+{
+    if (x->type != y->type)
+        return 0;
+
+    int r = 0;
+    switch(x->type)
+    {
+    case LVAL_ERR: r = strcmp(x->err, y->err); break;
+    case LVAL_NUM: r = x->num == y->num; break;
+    case LVAL_SYM: r = strcmp(x->sym, y->sym); break;
+    case LVAL_FUN:
+        if (x->buildin || y->buildin)
+            r = x->buildin == y->buildin;
+        else
+            r = lval_equal(x->formals, y->formals)
+                && lval_equal(x->body, y->body);
+        break;
+    case LVAL_SEXPR:
+    case LVAL_QEXPR:
+        if (x->count == y->count)
+        {
+            r = !0;
+            for (int i=0; i<x->count; i++)
+            {
+                if (lval_equal(x->cell[i], y->cell[i]) == 0)
+                {
+                    r = 0;
+                    break;
+                }
+            }
+        }
+        break;
+    }
+
+    return r;
+}
+
+lval* buildin_cmp(lval* v, char* op)
+{
+    if (v->count != 3)
+        return lval_err("Function %s passed incorrent number of arguments, "
+                        "get %d, expectedd %d", op, 2, v->count-1);
+    int r;
+    if (!strcmp(op, "=="))
+        r = lval_equal(v->cell[1], v->cell[2]);
+    else if (!strcmp(op, "!="))
+        r = !lval_equal(v->cell[1], v->cell[2]);
+
+    return lval_num(r);
+}
+
+lval* buildin_eq(lenv* e, lval* v)
+{
+    return buildin_cmp(v, "==");
+}
+
+lval* buildin_ne(lenv* e, lval* v)
+{
+    return buildin_cmp(v, "!=");
+}
+
 /*
  * def {x} 1
  * = {x} 1
@@ -615,6 +723,14 @@ void lenv_add_buildins(lenv* e)
     lenv_add_buildin(e, "\\",  buildin_lambda);
     lenv_add_buildin(e, "def",  buildin_def_global);
     lenv_add_buildin(e, "=",  buildin_def_local);
+
+    lenv_add_buildin(e, ">",  buildin_gt);
+    lenv_add_buildin(e, "<",  buildin_lt);
+    lenv_add_buildin(e, ">=",  buildin_ge);
+    lenv_add_buildin(e, "<=",  buildin_le);
+
+    lenv_add_buildin(e, "==",  buildin_eq);
+    lenv_add_buildin(e, "!=",  buildin_ne);
 
     lenv_add_buildin(e, "+", buildin_add);
     lenv_add_buildin(e, "-", buildin_sub);
