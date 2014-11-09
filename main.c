@@ -114,7 +114,7 @@ lval* lval_lambda(lval* formals, lval* body)
     x->buildin = NULL;
     x->env = lenv_new();
     x->formals = formals;
-    x->formals = body;
+    x->body = body;
 
     return x;
 }
@@ -402,7 +402,7 @@ lval* buildin_eval(lenv* e, lval* v)
 {
     if (v->count != 2)
         return lval_err("Function 'eval' passed too many arguments, "
-                        "get %d, expectedd %d", 1, v->count);
+                        "get %d, expectedd %d", 1, v->count-1);
     if (v->cell[1]->type != LVAL_QEXPR)
         return lval_err("Function 'eval' passed incorrect type, "
                         "get <%s>, expected<%s>",
@@ -545,7 +545,7 @@ lval* buildin_lambda(lenv* e, lval* v)
                             ltype_name(x->type), ltype_name(LVAL_SYM));
     }
 
-    return lval_lambda(v->cell[1], v->cell[2]);
+    return lval_lambda(lval_copy(v->cell[1]), lval_copy(v->cell[2]));
 }
 
 /**
@@ -563,19 +563,19 @@ lval* lval_call(lenv* e, lval* f, lval* a)
                         "Got %i, Expected %i.", a->count-1, f->formals->count);
 
     int i=0;
-    for (;i<f->formals->count; i++)
+    for (; i<a->count-1; i++)
     {
         lval* val = a->cell[1+i];
-        lval* sym = f->cell[1];
+        lval* sym = f->formals->cell[i];
         lenv_put(f->env, sym, val);
     }
 
     if (i == f->formals->count)
     {
-        lval* x = lval_sexpr();
-        lval_add(x, lval_copy(f->body));
         f->env->par = e;
-        return buildin_eval(f->env, x);
+        lval* body = lval_copy(f->body);
+        body->type = LVAL_SEXPR;
+        return lval_eval(f->env, body);
     } else {
     //construct
         lval* x = malloc(sizeof(lval));
@@ -584,13 +584,13 @@ lval* lval_call(lenv* e, lval* f, lval* a)
         x->buildin = f->buildin;
 
         //construct the remain formals
-        lval* remain_formals = malloc(sizeof(lval));
-        remain_formals->type = f->formals->type;
+        lval* remain_formals = lval_expr(f->formals->type);
         for (int k=i; k<f->formals->count; k++)
         {
-            lval_add(x->formals, remain_formals->formals->cell[k]);
+            lval_add(remain_formals, lval_clone(f->formals, k));
         }
 
+        x->formals = remain_formals;
         x->body = lval_copy(f->body);
         return x;
     }
@@ -617,9 +617,9 @@ void lenv_add_buildins(lenv* e)
     lenv_add_buildin(e, "=",  buildin_def_local);
 
     lenv_add_buildin(e, "+", buildin_add);
-    lenv_add_buildin(e, "-", buildin_add);
-    lenv_add_buildin(e, "*", buildin_add);
-    lenv_add_buildin(e, "/", buildin_add);
+    lenv_add_buildin(e, "-", buildin_sub);
+    lenv_add_buildin(e, "*", buildin_mul);
+    lenv_add_buildin(e, "/", buildin_div);
 }
 
 void lval_print(lval *v);
