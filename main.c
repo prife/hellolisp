@@ -577,6 +577,39 @@ lval* buildin_ne(lenv* e, lval* v)
     return buildin_cmp(v, "!=");
 }
 
+lval* buildin_if(lenv* e, lval* v)
+{
+    if (v->count-1 != 3)
+        return lval_err("Function 'if' passed incorrent number of arguments, "
+                        "get %d, expectedd %d", 3, v->count-1);
+    if (v->cell[1]->type != LVAL_NUM)
+        return lval_err("Function 'if' passed incorrent type, "
+                        "get %d, expectedd %d",
+                        ltype_name(v->cell[1]->type), ltype_name(LVAL_NUM));
+    if (v->cell[2]->type != LVAL_QEXPR)
+        return lval_err("Function 'if' passed incorrent type, "
+                        "get %d, expectedd %d",
+                        ltype_name(v->cell[2]->type), ltype_name(LVAL_QEXPR));
+    if (v->cell[3]->type != LVAL_QEXPR)
+        return lval_err("Function 'if' passed incorrent type, "
+                        "get %d, expectedd %d",
+                        ltype_name(v->cell[3]->type), ltype_name(LVAL_QEXPR));
+
+    lval* cond = v->cell[1];
+    if (cond->num)
+    {
+        lval* x = lval_copy(v->cell[2]);
+        x->type = LVAL_SEXPR;
+        lval_eval(e, x);
+    }
+    else
+    {
+        lval* x = lval_copy(v->cell[3]);
+        x->type = LVAL_SEXPR;
+        return lval_eval(e, x);
+    }
+}
+
 /*
  * def {x} 1
  * = {x} 1
@@ -731,6 +764,8 @@ void lenv_add_buildins(lenv* e)
 
     lenv_add_buildin(e, "==",  buildin_eq);
     lenv_add_buildin(e, "!=",  buildin_ne);
+
+    lenv_add_buildin(e, "if",  buildin_if);
 
     lenv_add_buildin(e, "+", buildin_add);
     lenv_add_buildin(e, "-", buildin_sub);
