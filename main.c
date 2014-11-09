@@ -523,9 +523,9 @@ int lval_equal(lval* x, lval* y)
     int r = 0;
     switch(x->type)
     {
-    case LVAL_ERR: r = strcmp(x->err, y->err); break;
+    case LVAL_ERR: r = !strcmp(x->err, y->err); break;
     case LVAL_NUM: r = x->num == y->num; break;
-    case LVAL_SYM: r = strcmp(x->sym, y->sym); break;
+    case LVAL_SYM: r = !strcmp(x->sym, y->sym); break;
     case LVAL_FUN:
         if (x->buildin || y->buildin)
             r = x->buildin == y->buildin;
