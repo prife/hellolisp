@@ -928,13 +928,15 @@ lval* buildin_load(lenv* e, lval* v)
         mpc_ast_delete(r.output);
         for (int i=0; i<expr->count; i++)
         {
+            /* NOTE: expr->cell[i] will be freed in lval_eval!! */
             lval* x = lval_eval(e, expr->cell[i]);
             //if (x->type == LVAL_ERR)
             lval_println(x);
 
             lval_del(x);
         }
-        //lval_del(expr);
+
+        free(expr);
 
         return lval_sexpr();
     } else {
