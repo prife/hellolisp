@@ -781,6 +781,8 @@ void lenv_add_buildin(lenv* e, char* name, lbuildin func)
 }
 
 lval* buildin_load(lenv* e, lval* v);
+lval* buildin_print(lenv* e, lval* v);
+lval* buildin_error(lenv* e, lval* v);
 void lenv_add_buildins(lenv* e)
 {
     lenv_add_buildin(e, "list", buildin_list);
@@ -807,6 +809,8 @@ void lenv_add_buildins(lenv* e)
     lenv_add_buildin(e, "*", buildin_mul);
     lenv_add_buildin(e, "/", buildin_div);
     lenv_add_buildin(e, "load", buildin_load);
+    lenv_add_buildin(e, "print", buildin_print);
+    lenv_add_buildin(e, "error", buildin_error);
 }
 
 void lval_print(lval *v);
@@ -861,6 +865,31 @@ void lval_println(lval *v)
 {
     lval_print(v);
     putchar('\n');
+}
+
+lval* buildin_print(lenv* e, lval* v)
+{
+    for (int i=1; i<v->count; i++)
+    {
+        lval_print(v->cell[i]);
+        putchar(' ');
+    }
+    putchar('\n');
+
+    return lval_sexpr();
+}
+
+lval* buildin_error(lenv* e, lval* v)
+{
+    if (v->count != 2)
+        return lval_err("Function 'error' passed too many arguments, "
+                        "get %d, expectedd %d", 1, v->count);
+    if (v->cell[1]->type != LVAL_STR)
+        return lval_err("Function 'error' passed incorrect type, "
+                        "get <%s>, expected<%s>",
+                        ltype_name(v->cell[1]->type), ltype_name(LVAL_STR));
+
+    return lval_err(v->cell[1]->str);
 }
 
 lval* lval_eval_sexpr(lenv* e, lval* v)
