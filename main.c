@@ -7,6 +7,7 @@
 #include <editline/readline.h>
 #include <mpc.h>
 
+static mpc_parser_t* Lispy;
 char *strdup(const char *s);
 
 struct lenv;
@@ -779,6 +780,7 @@ void lenv_add_buildin(lenv* e, char* name, lbuildin func)
     lval_del(f);
 }
 
+lval* buildin_load(lenv* e, lval* v);
 void lenv_add_buildins(lenv* e)
 {
     lenv_add_buildin(e, "list", buildin_list);
@@ -804,6 +806,7 @@ void lenv_add_buildins(lenv* e)
     lenv_add_buildin(e, "-", buildin_sub);
     lenv_add_buildin(e, "*", buildin_mul);
     lenv_add_buildin(e, "/", buildin_div);
+    lenv_add_buildin(e, "load", buildin_load);
 }
 
 void lval_print(lval *v);
@@ -908,6 +911,43 @@ lval* lval_eval(lenv* e, lval* v)
     return v;
 }
 
+lval* buildin_load(lenv* e, lval* v)
+{
+    mpc_result_t r;
+    if (v->count != 2)
+        return lval_err("Function 'load' passed too many arguments, "
+                        "get %d, expectedd %d", 1, v->count);
+    if (v->cell[1]->type != LVAL_STR)
+        return lval_err("Function 'load' passed incorrect type, "
+                        "get <%s>, expected<%s>",
+                        ltype_name(v->cell[1]->type), ltype_name(LVAL_STR));
+    const char* filename = v->cell[1]->str;
+    if (mpc_parse_contents(filename, Lispy, &r))
+    {
+        lval* expr = lval_read(r.output);
+        mpc_ast_delete(r.output);
+        for (int i=0; i<expr->count; i++)
+        {
+            lval* x = lval_eval(e, expr->cell[i]);
+            //if (x->type == LVAL_ERR)
+            lval_println(x);
+
+            lval_del(x);
+        }
+        //lval_del(expr);
+
+        return lval_sexpr();
+    } else {
+        //mpc_err_print(r.error);
+        char* err_msg = mpc_err_string(r.error);
+        mpc_err_delete(r.error);
+        lval* err = lval_err("Could not load Library %s", err_msg);
+        free(err_msg);
+        return err;
+    }
+}
+
+
 int main(int argc, char* argv[])
 {
     printf("version: 0.0.1\n");
@@ -919,7 +959,7 @@ int main(int argc, char* argv[])
     mpc_parser_t* Sexpr = mpc_new("sexpr");
     mpc_parser_t* Qexpr = mpc_new("qexpr");
     mpc_parser_t* Expr = mpc_new("expr");
-    mpc_parser_t* Lispy = mpc_new("lispy");
+    Lispy = mpc_new("lispy");
 
     mpca_lang(MPCA_LANG_DEFAULT,                                      \
         "                                                             \
